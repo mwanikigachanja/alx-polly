@@ -5,7 +5,35 @@ import { revalidatePath } from "next/cache";
 import { rateLimit } from "@/lib/rate-limit";
 import { headers } from "next/headers";
 
-// CREATE POLL
+/**
+ * Creates a new poll with comprehensive validation and security measures
+ * 
+ * This function handles poll creation with the following security features:
+ * - User authentication verification
+ * - Rate limiting to prevent spam (10 polls per hour per user)
+ * - Input validation and sanitization
+ * - Duplicate option prevention
+ * - Length constraints for questions and options
+ * 
+ * @param formData - Form data containing poll question and options
+ * @returns Promise<{ error: string | null }> - Returns error message if creation fails, null if successful
+ * 
+ * @example
+ * ```typescript
+ * const formData = new FormData();
+ * formData.append('question', 'What is your favorite color?');
+ * formData.append('options', 'Red');
+ * formData.append('options', 'Blue');
+ * formData.append('options', 'Green');
+ * 
+ * const result = await createPoll(formData);
+ * if (result.error) {
+ *   console.error('Poll creation failed:', result.error);
+ * } else {
+ *   // Poll created successfully
+ * }
+ * ```
+ */
 export async function createPoll(formData: FormData) {
   const supabase = await createClient();
 
@@ -79,7 +107,29 @@ export async function createPoll(formData: FormData) {
   return { error: null };
 }
 
-// GET USER POLLS
+/**
+ * Retrieves all polls created by the current authenticated user
+ * 
+ * This function fetches polls with the following features:
+ * - Authentication verification
+ * - User-specific data filtering
+ * - Ordered by creation date (newest first)
+ * 
+ * @returns Promise<{ polls: Poll[], error: string | null }> - Returns user's polls or error message
+ * 
+ * @example
+ * ```typescript
+ * const result = await getUserPolls();
+ * if (result.error) {
+ *   console.error('Failed to fetch polls:', result.error);
+ * } else {
+ *   console.log('User has', result.polls.length, 'polls');
+ *   result.polls.forEach(poll => {
+ *     console.log('Poll:', poll.question);
+ *   });
+ * }
+ * ```
+ */
 export async function getUserPolls() {
   const supabase = await createClient();
   const {
@@ -97,7 +147,30 @@ export async function getUserPolls() {
   return { polls: data ?? [], error: null };
 }
 
-// GET POLL BY ID
+/**
+ * Retrieves a specific poll by its ID
+ * 
+ * This function fetches a single poll with the following features:
+ * - Public access (no authentication required)
+ * - Single poll retrieval
+ * - Error handling for non-existent polls
+ * 
+ * @param id - The unique identifier of the poll
+ * @returns Promise<{ poll: Poll | null, error: string | null }> - Returns poll data or error message
+ * 
+ * @example
+ * ```typescript
+ * const result = await getPollById('poll-uuid-123');
+ * if (result.error) {
+ *   console.error('Failed to fetch poll:', result.error);
+ * } else if (result.poll) {
+ *   console.log('Poll question:', result.poll.question);
+ *   console.log('Options:', result.poll.options);
+ * } else {
+ *   console.log('Poll not found');
+ * }
+ * ```
+ */
 export async function getPollById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -110,7 +183,29 @@ export async function getPollById(id: string) {
   return { poll: data, error: null };
 }
 
-// SUBMIT VOTE
+/**
+ * Submits a vote for a specific poll option
+ * 
+ * This function handles voting with comprehensive validation:
+ * - Poll existence verification
+ * - Option index validation
+ * - Duplicate vote prevention for authenticated users
+ * - Support for both authenticated and anonymous voting
+ * 
+ * @param pollId - The unique identifier of the poll
+ * @param optionIndex - The zero-based index of the selected option
+ * @returns Promise<{ error: string | null }> - Returns error message if voting fails, null if successful
+ * 
+ * @example
+ * ```typescript
+ * const result = await submitVote('poll-uuid-123', 0);
+ * if (result.error) {
+ *   console.error('Vote submission failed:', result.error);
+ * } else {
+ *   console.log('Vote submitted successfully');
+ * }
+ * ```
+ */
 export async function submitVote(pollId: string, optionIndex: number) {
   const supabase = await createClient();
   const {
@@ -164,7 +259,28 @@ export async function submitVote(pollId: string, optionIndex: number) {
   return { error: null };
 }
 
-// DELETE POLL
+/**
+ * Deletes a poll with ownership verification
+ * 
+ * This function handles poll deletion with security measures:
+ * - User authentication verification
+ * - Ownership verification (users can only delete their own polls)
+ * - Database integrity maintenance
+ * - Cache revalidation
+ * 
+ * @param id - The unique identifier of the poll to delete
+ * @returns Promise<{ error: string | null }> - Returns error message if deletion fails, null if successful
+ * 
+ * @example
+ * ```typescript
+ * const result = await deletePoll('poll-uuid-123');
+ * if (result.error) {
+ *   console.error('Poll deletion failed:', result.error);
+ * } else {
+ *   console.log('Poll deleted successfully');
+ * }
+ * ```
+ */
 export async function deletePoll(id: string) {
   const supabase = await createClient();
   
@@ -192,7 +308,35 @@ export async function deletePoll(id: string) {
   return { error: null };
 }
 
-// UPDATE POLL
+/**
+ * Updates an existing poll with ownership verification
+ * 
+ * This function handles poll updates with comprehensive security measures:
+ * - User authentication verification
+ * - Ownership verification (users can only update their own polls)
+ * - Input validation and sanitization (same as createPoll)
+ * - Duplicate option prevention
+ * - Length constraints for questions and options
+ * 
+ * @param pollId - The unique identifier of the poll to update
+ * @param formData - Form data containing updated poll question and options
+ * @returns Promise<{ error: string | null }> - Returns error message if update fails, null if successful
+ * 
+ * @example
+ * ```typescript
+ * const formData = new FormData();
+ * formData.append('question', 'Updated question');
+ * formData.append('options', 'Option 1');
+ * formData.append('options', 'Option 2');
+ * 
+ * const result = await updatePoll('poll-uuid-123', formData);
+ * if (result.error) {
+ *   console.error('Poll update failed:', result.error);
+ * } else {
+ *   console.log('Poll updated successfully');
+ * }
+ * ```
+ */
 export async function updatePoll(pollId: string, formData: FormData) {
   const supabase = await createClient();
 

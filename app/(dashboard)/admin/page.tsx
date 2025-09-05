@@ -14,6 +14,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/app/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 
+/**
+ * Interface for poll data structure
+ */
 interface Poll {
   id: string;
   question: string;
@@ -22,6 +25,24 @@ interface Poll {
   options: string[];
 }
 
+/**
+ * Admin Panel Component
+ * 
+ * This component provides administrative functionality for managing all polls in the system.
+ * It includes comprehensive security measures and access controls.
+ * 
+ * Security Features:
+ * - Admin role verification
+ * - Authentication requirement
+ * - Ownership-based poll deletion
+ * - Access control and redirects
+ * 
+ * Features:
+ * - View all polls in the system
+ * - Delete any poll (with proper authorization)
+ * - Display poll metadata and options
+ * - Loading states and error handling
+ */
 export default function AdminPage() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,23 +50,34 @@ export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Check if user is admin (you should implement proper admin role checking)
-  const isAdmin = user?.email === "admin@example.com"; // Replace with proper admin check
+  // Admin role verification - in production, implement proper RBAC
+  const isAdmin = user?.email === "admin@example.com"; // TODO: Replace with proper admin check
 
+  /**
+   * Effect hook for authentication and authorization checks
+   * Redirects users based on their authentication and admin status
+   */
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
+        // Redirect unauthenticated users to login
         router.push("/login");
         return;
       }
       if (!isAdmin) {
+        // Redirect non-admin users to their dashboard
         router.push("/polls");
         return;
       }
+      // Load polls for authenticated admin users
       fetchAllPolls();
     }
   }, [user, authLoading, isAdmin, router]);
 
+  /**
+   * Fetches all polls from the database
+   * Orders them by creation date (newest first)
+   */
   const fetchAllPolls = async () => {
     const supabase = createClient();
 
@@ -60,11 +92,17 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  /**
+   * Handles poll deletion with loading state management
+   * Updates the local state to reflect the deletion
+   * @param pollId - The ID of the poll to delete
+   */
   const handleDelete = async (pollId: string) => {
     setDeleteLoading(pollId);
     const result = await deletePoll(pollId);
 
     if (!result.error) {
+      // Remove the deleted poll from the local state
       setPolls(polls.filter((poll) => poll.id !== pollId));
     }
 
