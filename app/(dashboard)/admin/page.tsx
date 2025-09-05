@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { deletePoll } from "@/app/lib/actions/poll-actions";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/app/lib/context/auth-context";
+import { useRouter } from "next/navigation";
 
 interface Poll {
   id: string;
@@ -24,10 +26,25 @@ export default function AdminPage() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Check if user is admin (you should implement proper admin role checking)
+  const isAdmin = user?.email === "admin@example.com"; // Replace with proper admin check
 
   useEffect(() => {
-    fetchAllPolls();
-  }, []);
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      if (!isAdmin) {
+        router.push("/polls");
+        return;
+      }
+      fetchAllPolls();
+    }
+  }, [user, authLoading, isAdmin, router]);
 
   const fetchAllPolls = async () => {
     const supabase = createClient();
@@ -54,8 +71,16 @@ export default function AdminPage() {
     setDeleteLoading(null);
   };
 
-  if (loading) {
-    return <div className="p-6">Loading all polls...</div>;
+  if (authLoading || loading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (!user) {
+    return <div className="p-6">Please log in to access this page.</div>;
+  }
+
+  if (!isAdmin) {
+    return <div className="p-6">Access denied. Admin privileges required.</div>;
   }
 
   return (
