@@ -7,6 +7,16 @@ import { rateLimit } from '@/lib/rate-limit';
 
 type ActionResult<T> = T & { error?: string };
 
+// Concrete Poll type that matches the database schema
+export interface Poll {
+  id: string;
+  user_id: string;
+  question: string;
+  options: string[];
+  created_at: string;
+  updated_at?: string | null;
+}
+
 function sanitizeOptions(options: string[]): string[] {
   return options
     .map((opt) => String(opt).trim())
@@ -53,7 +63,7 @@ export async function createPoll(formData: FormData): Promise<ActionResult<{}>> 
   return {};
 }
 
-export async function getUserPolls(): Promise<{ polls: any[]; error?: string }> {
+export async function getUserPolls(): Promise<{ polls: Poll[]; error?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -63,24 +73,45 @@ export async function getUserPolls(): Promise<{ polls: any[]; error?: string }> 
   if (!user) return { polls: [], error: 'Not authenticated' };
 
   const { data, error } = await supabase
-    .from('polls')
+    .from<Poll>('polls')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
   if (error) return { polls: [], error: error.message };
-  return { polls: data ?? [] };
+  return { polls: (data ?? []) as Poll[] };
 }
 
-export async function getPollById(id: string): Promise<{ poll: any | null; error?: string }>{
+export async function getPollById(id: string): Promise<{ poll: Poll | null; error?: string }> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from('polls').select('*').eq('id', id).single();
+  const { data, error } = await supabase
+    .from<Poll>('polls')
+    .select('*')
+    .eq('id', id)
+    .single();
   if (error) return { poll: null, error: error.message };
-  return { poll: data };
+  return { poll: (data as Poll) };
 }
 
 export async function updatePoll(id: string, formData: FormData): Promise<ActionResult<{}>> {
   const supabase = await createClient();
 
+  // Authenticate early and verify ownership before any validation
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) return { error: userError.message };
+  if (!user) return { error: 'You must be logged in to update a poll.' };
+
+  const { data: existingPoll, error: fetchError } = await supabase
+    .from<Pick<Poll, 'user_id'>>('polls')
+    .select('user_id')
+    .eq('id', id)
+    .single();
+  if (fetchError || !existingPoll) return { error: 'Poll not found.' };
+  if (existingPoll.user_id !== user.id) return { error: 'You do not have permission to update this poll.' };
+
+  // Proceed with validation and sanitization after ownership is confirmed
   const question = String(formData.get('question') ?? '').trim();
   const options = formData.getAll('options').map(String);
 
@@ -95,13 +126,6 @@ export async function updatePoll(id: string, formData: FormData): Promise<Action
     return { error: 'All options must be between 1 and 200 characters.' };
   if (new Set(sanitized).size !== sanitized.length)
     return { error: 'Duplicate options are not allowed.' };
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError) return { error: userError.message };
-  if (!user) return { error: 'You must be logged in to update a poll.' };
 
   const { error } = await supabase
     .from('polls')
