@@ -68,6 +68,7 @@ export default async function PollDetailPage({ params, searchParams }: { params:
         <CardContent className="space-y-4">
           <form
             action={async (formData) => {
+              'use server';
               try {
                 const result = await voteOnPoll(params.id, formData);
                 if (result && result.error) {
